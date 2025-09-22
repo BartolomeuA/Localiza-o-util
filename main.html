@@ -132,6 +132,15 @@
       localStorage.removeItem("geoUser");
       window.location.href = "login.html";
     }
+  
   </script>
+  <script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/service-worker.js")
+      .then(() => console.log("✅ Service Worker registrado!"))
+      .catch((err) => console.error("❌ SW falhou:", err));
+  }
+</script>
+
 </body>
 </html>
