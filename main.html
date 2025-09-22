@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEO-MP - Encontrar Pessoas</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+  <style>
+    body{margin:0;font-family:sans-serif;background:#212121;color:white;}
+    header{background:#1e1e1e;padding:10px;display:flex;justify-content:space-between;align-items:center;}
+    header h1{font-size:1.2rem;margin:0;color:#ff4d4d;}
+    header button{background:#ff4d4d;color:white;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;}
+    #map{height:80vh;width:100%;}
+    #info{padding:10px;text-align:center;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌍 GEO-MP</h1>
+    <button onclick="logout()">Sair</button>
+  </header>
+
+  <div id="info">Localizando você...</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.min.js"></script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDsP7lNqu-tDpJxpsyv8t1DW0M_u2EAE3o",
+      authDomain: "bartolomeu-cruz.firebaseapp.com",
+      databaseURL: "https://bartolomeu-cruz-default-rtdb.firebaseio.com",
+      projectId: "bartolomeu-cruz",
+      storageBucket: "bartolomeu-cruz.appspot.com",
+      messagingSenderId: "408863884951",
+      appId: "1:408863884951:web:13e8c2282139c1307dcbd2",
+      measurementId: "G-8TF4WLHKX3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const username = localStorage.getItem("geoUser");
+    if(!username){
+      window.location.href = "login.html";
+    }
+
+    // Inicializa mapa
+    let map = L.map("map").setView([0,0],2);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+
+    let userMarker = null;
+    let friendsMarkers = {};
+    let routeControl = null;
+
+    // Atualizar localização no Firebase
+    function updateLocation(lat, lon){
+      set(ref(db,"locations/"+username),{
+        lat:lat,
+        lon:lon,
+        timestamp:Date.now()
+      });
+    }
+
+    // Pegar localização do usuário em tempo real
+    if(navigator.geolocation){
+      navigator.geolocation.watchPosition(pos=>{
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        map.setView([lat,lon],13);
+
+        if(userMarker) userMarker.setLatLng([lat,lon]);
+        else userMarker = L.marker([lat,lon]).addTo(map).bindPopup("Você está aqui").openPopup();
+
+        document.getElementById("info").innerText = `Sua posição: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+        updateLocation(lat,lon);
+      });
+    }else{
+      alert("Seu navegador não suporta geolocalização.");
+    }
+
+    // Mostrar amigos no mapa
+    const locRef = ref(db,"locations");
+    onValue(locRef,snapshot=>{
+      if(snapshot.exists()){
+        const data = snapshot.val();
+        Object.keys(data).forEach(user=>{
+          if(user !== username){
+            const u = data[user];
+            if(!friendsMarkers[user]){
+              let marker = L.marker([u.lat,u.lon],{
+                icon: L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/149/149071.png",iconSize:[30,30]})
+              }).addTo(map).bindPopup(`${user}<br><button onclick="routeTo('${user}')">Traçar rota</button>`);
+              friendsMarkers[user] = marker;
+            }else{
+              friendsMarkers[user].setLatLng([u.lat,u.lon]);
+            }
+          }
+        });
+      }
+    });
+
+    // Traçar rota até amigo
+    window.routeTo = function(friend){
+      if(routeControl) map.removeControl(routeControl);
+      const friendDataRef = ref(db,"locations/"+friend);
+      onValue(friendDataRef,(snap)=>{
+        if(snap.exists()){
+          const u = snap.val();
+          const friendLatLng = L.latLng(u.lat,u.lon);
+          const userLatLng = userMarker.getLatLng();
+
+          routeControl = L.Routing.control({
+            waypoints:[userLatLng, friendLatLng],
+            routeWhileDragging:false,
+            draggableWaypoints:false,
+            addWaypoints:false
+          }).addTo(map);
+        }
+      },{onlyOnce:true});
+    }
+
+    // Logout
+    window.logout = function(){
+      localStorage.removeItem("geoUser");
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>
