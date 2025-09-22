@@ -1,7 +1,9 @@
 {
   "name": "GEO-MP",
   "short_name": "GEO-MP",
-  "start_url": "login.html",
+  "description": "🌍 Conecte-se com amigos em tempo real, compartilhe localização e trace rotas.",
+  "id": "geo-mp.app", 
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#212121",
   "theme_color": "#ff4d4d",
@@ -20,8 +22,13 @@
   ],
   "screenshots": [
     {
-      "src": "screenshot.png",
-      "sizes": "1080x1920",
+      "src": "screenshot1.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    },
+    {
+      "src": "screenshot2.png",
+      "sizes": "540x720",
       "type": "image/png"
     }
   ]
